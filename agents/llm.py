@@ -12,11 +12,11 @@ load_dotenv()
 def get_gemini_agent():
     """
     Returns a LangChain ChatModel that uses Gemini 2.5 Flash.
-    It automatically builds a fallback chain if multiple API keys are provided.
-    
-    Keys can be defined in the environment as:
-    GEMINI_API_KEY_1, GEMINI_API_KEY_2, etc.
     """
+    # Force reload of dotenv from explicit path to bypass Docker env masking
+    dotenv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+    load_dotenv(dotenv_path=dotenv_path, override=True)
+    
     keys = []
     
     # Check for numbered keys

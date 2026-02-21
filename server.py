@@ -57,6 +57,56 @@ async def get_catalog():
         ]
     }
 
+class ChatRequest(BaseModel):
+    query: str
+    user_address: str = ""
+
+class ChatResponse(BaseModel):
+    response: str
+
+from agents.llm import get_gemini_agent
+from langchain_core.messages import SystemMessage, HumanMessage
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    """
+    A2A text chat endpoint required by the shim.
+    """
+    logger.info(f"Received chat request: {request.query}")
+    
+    llm = get_gemini_agent()
+    if not llm:
+        return ChatResponse(response="I'm sorry, my LLM is not initialized.")
+        
+    system_prompt = """You are the Tesseris Compliance Agent.
+Your catalog includes: 
+- Full Compliance Audit (price: 0.001 ETH)
+
+When a user asks to check compliance or says hi, you MUST:
+1. Greet them ("Hi, I am the Compliance Agent...")
+2. Explain your catalog briefly.
+3. Explicitly ask the user to provide a JSON code structure for the tokenised bond.
+
+When the user ACTUALLY provides JSON data (containing something that looks like JSON or code with `{` and `}`):
+1. Acknowledge receipt of the bond structure.
+2. Tell them you are ready to proceed with the audit.
+3. You MUST end your response exactly with this phrase to trigger the checkout: "Price: 0.001 ETH"
+
+Do NOT execute the audit yourself. Only respond conversationally as instructed above.
+"""
+    
+    try:
+        response = llm.invoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=request.query)
+        ])
+        
+        return ChatResponse(response=response.content)
+        
+    except Exception as e:
+        logger.error(f"Error during LLM chat: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/task")
 async def execute_task(request: TaskRequest):
     """
